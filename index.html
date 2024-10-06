@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.20.0/axios.min.js" integrity="sha512-quHCp3WbBNkwLfYUMd+KwBAgpVukJu5MncuQaWXgCrfgcxCJAq/fo+oqrRKOj+UKEmyMCG3tb8RB63W+EmrOBg==" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="row">Login here</h1>
+        <main>
+            <div class="row">
+                <label for="username">username</label>
+                <input type="text" name="username" id="username">
+            </div>
+            <div class="row">
+                <label for="password">password</label>
+                <input type="password" name="password" id="password">
+            </div>
+            <div>
+                <button onclick="login()">Login</button>
+                <button onclick="getDashboard()">Get Dashboard</button>
+                <button onclick="getSettings()">Get Settings</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function login() {
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+            };
+            axios.post('/api/login', data)
+                .then(res => {
+                    console.log(res);
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    if (res && res.data && res.data.success) {
+                        const token = res.data.token;
+                        localStorage.setItem('jwt', token);
+                        getDashboard();
+                    }
+                });
+        }
+
+        function getDashboard() {
+            const token = localStorage.getItem('jwt');
+            console.log( token );
+            axios.get('/api/dashboard', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(res => {
+                    if (res && res.data && res.data.success) {
+                        changeUrl('Dashboard', 'dashboard');
+                        document.querySelector('h1.row').innerHTML = 'Dashboard';
+                        document.querySelector('main').innerHTML = res.data.myContent;
+
+                        var btn = document.createElement("Button");
+                        btn.innerHTML = "Settings";
+                        btn.setAttribute('onclick', 'getSettings();');
+                        document.querySelector('main').insertBefore(btn, document.querySelector('main').firstChild);
+                    } 
+                    else {
+                        alert('Token Expired ');
+                        changeUrl('Login','/');
+                        window.location.reload();
+                    }
+                });
+        }
+        
+        function getSettings() {
+            const token = localStorage.getItem('jwt');
+            axios.get('/api/settings', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(res => {
+                    if (res && res.data && res.data.success) {
+                        changeUrl('Settings', 'settings');
+                        document.querySelector('h1.row').innerHTML = 'Settings';
+                        document.querySelector('main').innerHTML = res.data.myContent;
+                    } 
+                    else {
+                        alert('Token Expired ');
+                        changeUrl('Login','/');
+                        window.location.reload();
+                    }
+                });
+        }
+
+
+        function changeUrl( title, url ){
+            if (typeof (history.pushState) !== "undefined") {
+                const obj = { Title: title, Url: url };
+                history.pushState(obj, obj.Title, obj.Url);
+            } else {
+                alert("Browser does not support HTML5");
+            }
+        }
+
+        
+
+        // function onLoad() {
+        //     const token = localStorage.getItem('jwt');
+        //     if (token) {
+        //         getDashboard();
+        //     }
+        // }
+        // onLoad();
+
+
+        function isTokenExpired(token) {
+            if (!token) return true;
+            const tokenData = JSON.parse(atob(token.split('.')[1]));
+            const tokenExp = tokenData.exp * 1000;
+            const currentTime = Date.now();
+            return currentTime > tokenExp;
+        }
+        function handleTokenExpiration() {
+            const token = localStorage.getItem('jwt');
+            if (isTokenExpired(token)) {
+                localStorage.removeItem('jwt');
+                
+                alert('Token Expired,login again');
+                changeUrl('Login','/');
+                window.location.reload();
+            }
+        }
+        setInterval(handleTokenExpiration, 60000);
+    </script>
+
+</body>
+</html>
